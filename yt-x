@@ -19,13 +19,15 @@ CLI_DIR="$(dirname "$(realpath "$0")")"
 CLI_CONFIG_DIR="${XDG_CONFIG_HOME:-"$HOME"/.config}/$CLI_NAME"
 CLI_EXTENSION_DIR="$CLI_CONFIG_DIR/extensions"
 CLI_CACHE_DIR="${XDG_CACHE_HOME:-"$HOME"/.cache}/$CLI_NAME"
-CLI_PREVIEW_IMAGES_CACHE_DIR="$CLI_CACHE_DIR/preview_images"
+CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR="$CLI_CACHE_DIR/preview_images_channels"
+CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR="$CLI_CACHE_DIR/preview_images_videos"
 CLI_YT_DLP_ARCHIVE="$CLI_CACHE_DIR/yt-dlp-archive"
 CLI_AUTO_GEN_PLAYLISTS="$CLI_CACHE_DIR/playlists"
 CLI_PREVIEW_SCRIPTS_DIR="$CLI_CACHE_DIR/preview_text"
 [ -d "$CLI_CONFIG_DIR" ] || mkdir -p "$CLI_CONFIG_DIR"
 [ -d "$CLI_EXTENSION_DIR" ] || mkdir -p "$CLI_EXTENSION_DIR"
-[ -d "$CLI_PREVIEW_IMAGES_CACHE_DIR" ] || mkdir -p "$CLI_PREVIEW_IMAGES_CACHE_DIR"
+[ -d "$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR" ] || mkdir -p "$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR"
+[ -d "$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR" ] || mkdir -p "$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR"
 [ -d "$CLI_PREVIEW_SCRIPTS_DIR" ] || mkdir -p "$CLI_PREVIEW_SCRIPTS_DIR"
 [ -d "$CLI_YT_DLP_ARCHIVE" ] || mkdir -p "$CLI_YT_DLP_ARCHIVE"
 [ -d "$CLI_AUTO_GEN_PLAYLISTS" ] || mkdir -p "$CLI_AUTO_GEN_PLAYLISTS"
@@ -249,6 +251,10 @@ fzf_preview() {
     dim=${FZF_PREVIEW_COLUMNS}x$((FZF_PREVIEW_LINES - 1))
   fi
 
+  if [ -z "$KITTY_WINDOW_ID"]; then
+    dim=$((FZF_PREVIEW_COLUMNS - 1))
+  fi
+
   if [ "$IMAGE_RENDERER" = "icat" ] && [ -z "$GHOSTTY_BIN_DIR" ]; then
     if command -v kitten >/dev/null 2>&1; then
       kitten icat --clear --transfer-mode=memory --unicode-placeholder --stdin=no --place="$dim@0x0" "$file" | sed "\$d" | sed "$(printf "\$s/\$/\033[m/")"
@@ -456,7 +462,7 @@ generate_text_preview() {
 
     printf "
 
-if [ -f \"$CLI_PREVIEW_IMAGES_CACHE_DIR/${preview_image}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CACHE_DIR/${preview_image}.jpg\" 2>/dev/null;
+if [ -f \"$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR/${preview_image}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR/${preview_image}.jpg\" 2>/dev/null;
 else echo loading preview image...;
 fi
 ll=1
@@ -480,13 +486,21 @@ echo
 
 ! [ \"$description\" = \"null\" ] && echo -n \"%s\";
 
-" "$description" >"$CLI_PREVIEW_SCRIPTS_DIR/$(echo "$video" | jq ".title" -r | generate_sha256).txt"
+" > "$CLI_PREVIEW_SCRIPTS_DIR/$(echo "$video" | jq ".title" -r | generate_sha256).txt"
 
   done
 }
 
 download_preview_images() {
   local url video filename
+
+  if [ -n "$2" ]; then
+    CLI_PREVIEW_IMAGES_CACHE_DIR=$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR
+  else
+    CLI_PREVIEW_IMAGES_CACHE_DIR=$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR
+  fi
+  
+  rm -rf $CLI_PREVIEW_IMAGES_CACHE_DIR/*
 
   echo generating preview in the background...
   generate_text_preview "$1" &
@@ -509,6 +523,7 @@ download_preview_images() {
   done
   curl -s -K "$CLI_PREVIEW_IMAGES_CACHE_DIR/previews.txt" 2>/dev/null &
 }
+
 launcher_with_preview() {
   case "$PREFERRED_SELECTOR" in
   rofi)
@@ -535,6 +550,7 @@ launcher_with_preview() {
   esac
 
 }
+
 init_pretty_print() {
   if [ "$PRETTY_PRINT" = "true" ]; then
     RED=$(tput setaf 1)
@@ -544,11 +560,13 @@ init_pretty_print() {
     RESET=$(tput sgr0)
   fi
 }
+
 byebye() {
   clear
   echo "Have a good day $USERNAME"
   exit "${1:-0}"
 }
+
 prompt() {
   if [ "$PREFERRED_SELECTOR" = "rofi" ]; then
     rofi -dmenu -p "$1: "
@@ -616,7 +634,7 @@ PREVIEW_SCRIPT_FOR_CHANNELS="
     
     description=\$(echo \"\$video\"| jq '.description' -r);
     
-    if [ -f \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
+    if [ -f \"$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
     else echo loading preview image...;
     fi
 
@@ -664,7 +682,7 @@ PREVIEW_SCRIPT_FOR_CHANNELS_EXPLORER="
     
     description=\$(echo \"\$video\"| jq '.description' -r);
     
-    if [ -f \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
+    if [ -f \"$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
     else echo loading preview image...;
     fi
 
@@ -696,7 +714,7 @@ PREVIEW_SCRIPT_FOR_PLAYLISTS_EXPLORER="
     id=\$(echo \$video | jq '.thumbnails[-1].url' -r | generate_sha256);   
 
     
-    if [ -f \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
+    if [ -f \"$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
     else echo loading preview image...;
     fi
 
@@ -722,13 +740,16 @@ playlist_explorer() {
           |map(.value))
           ") && ! [ "$ENABLE_PREVIEW" = "true" ] || ! [ "$PREFERRED_SELECTOR" = "fzf" ] && DOWNLOAD_IMAGES=1
     titles=$(echo "$search_results" | jq '.entries[].title' -r 2>/dev/null)
-    [ "$ENABLE_PREVIEW" = "true" ] && [ "$PREFERRED_SELECTOR" = "fzf" ] && [ "$DOWNLOAD_IMAGES" = 0 ] && download_preview_images "$search_results" "" && DOWNLOAD_IMAGES=1
-    export search_results SHELL
-    if [ "$ENABLE_PREVIEW" = "true" ]; then
-      title="$(printf "%s\nNext\nPrevious\n${CYAN}󰌍${RESET}  Back\n${CYAN}󰍜${RESET}  Main Menu\n${RED}󰈆${RESET}  Exit" "$titles" | launcher_with_preview "select video" "$PREVIEW_SCRIPT_FOR_VIDEOS" | tr -d '\n' | sed 's/^[^0-9]  //g')"
-    else
-      title="$(printf "%s\nNext\nPrevious\nBack\nMain Menu\nExit" "$titles" | launcher "select video" | tr -d '\n' | sed 's/^[^0-9]  //g')"
+    #download_preview_images "$search_results" ""
+    if [ $PREFERRED_SELECTOR = "fzf" ]; then 
+      download_preview_images "$search_results" "" && DOWNLOAD_IMAGES=1
     fi
+    export search_results SHELL
+    #if [ "$ENABLE_PREVIEW" = "true" ]; then
+      title="$(printf "%s\nNext\nPrevious\n${CYAN}󰌍${RESET}  Back\n${CYAN}󰍜${RESET}  Main Menu\n${RED}󰈆${RESET}  Exit" "$titles" | launcher_with_preview "select video" "$PREVIEW_SCRIPT_FOR_VIDEOS" | tr -d '\n' | sed 's/^[^0-9]  //g')"
+    #else
+     # title="$(printf "%s\nNext\nPrevious\nBack\nMain Menu\nExit" "$titles" | launcher "select video" | tr -d '\n' | sed 's/^[^0-9]  //g')"
+    #fi
     clear
     title="$(echo "$title" | sed 's/"/\\"/g')"
     case "$title" in
