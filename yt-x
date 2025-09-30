@@ -1,13 +1,19 @@
 #!/usr/bin/env bash
 #A script written by Benexl in September 2024 under MIT LICENSE
 
+# CLI_HEADER='
+# ██╗░░░██╗████████╗░░░░░░██╗░░██╗
+# ╚██╗░██╔╝╚══██╔══╝░░░░░░╚██╗██╔╝
+# ░╚████╔╝░░░░██║░░░█████╗░╚███╔╝░
+# ░░╚██╔╝░░░░░██║░░░╚════╝░██╔██╗░
+# ░░░██║░░░░░░██║░░░░░░░░░██╔╝╚██╗
+# ░░░╚═╝░░░░░░╚═╝░░░░░░░░░╚═╝░░╚═╝
+# '
+
 CLI_HEADER='
-██╗░░░██╗████████╗░░░░░░██╗░░██╗
-╚██╗░██╔╝╚══██╔══╝░░░░░░╚██╗██╔╝
-░╚████╔╝░░░░██║░░░█████╗░╚███╔╝░
-░░╚██╔╝░░░░░██║░░░╚════╝░██╔██╗░
-░░░██║░░░░░░██║░░░░░░░░░██╔╝╚██╗
-░░░╚═╝░░░░░░╚═╝░░░░░░░░░╚═╝░░╚═╝
+
+Youtube
+
 '
 
 # CLI_NAME=${0##*/}
@@ -173,12 +179,12 @@ load_config() {
   PLAYLIST_END="$NO_OF_SEARCH_RESULTS"
 
   FZF_DEFAULT_OPTS=${YT_X_FZF_OPTS:-'
-    --color=fg:#d0d0d0,fg+:#d0d0d0,bg:#121212,bg+:#262626
+    --color=fg:#d0d0d0,fg+:#d0d0d0,bg:"",bg+:#000000
     --color=hl:#5f87af,hl+:#5fd7ff,info:#afaf87,marker:#87ff00
-    --color=prompt:#d7005f,spinner:#af5fff,pointer:#af5fff,header:#87afaf
+    --color=prompt:#87d700,spinner:#87d700,pointer:#87d700,header:#afd75f
     --color=border:#262626,label:#aeaeae,query:#d9d9d9
     --border="rounded" --border-label="" --preview-window="border-rounded" --prompt="> "
-    --marker=">" --pointer="◆" --separator="─" --scrollbar="│"
+    --marker=">" --pointer="->" --separator="─" --scrollbar="│"
   '}
   init_pretty_print
   AUTO_LOADED_EXTENSIONS="$(awk -F': ' '/^AUTO_LOADED_EXTENSIONS:/ && !/#/ {print $2}' "$CLI_CONFIG_DIR/${CLI_NAME}.conf")"
@@ -555,8 +561,8 @@ launcher_with_preview() {
 init_pretty_print() {
   if [ "$PRETTY_PRINT" = "true" ]; then
     RED=$(tput setaf 1)
-    MAGENTA="\x1b[38;2;215;0;95m"
-    CYAN=$(tput setaf 6)
+    MAGENTA="\e[38;5;178m"
+    CYAN="\e[38;5;149m"
     BOLD=$(tput bold)
     RESET=$(tput sgr0)
   fi
@@ -607,7 +613,7 @@ PREVIEW_SCRIPT_FOR_VIDEOS="
 "
 PREVIEW_SCRIPT_FOR_CHANNELS="
 
-  MAGENTA='\x1b[38;2;215;0;95m'
+  MAGENTA='\e[38;5;178m'
   BOLD=\$(tput bold)
   RESET=\$(tput sgr0)
 
@@ -655,7 +661,7 @@ PREVIEW_SCRIPT_FOR_CHANNELS="
 
 PREVIEW_SCRIPT_FOR_CHANNELS_EXPLORER="
 
-  MAGENTA='\x1b[38;2;215;0;95m'
+  MAGENTA='\e[38;5;178m'
   BOLD=\$(tput bold)
   RESET=\$(tput sgr0)
 
@@ -702,7 +708,7 @@ PREVIEW_SCRIPT_FOR_CHANNELS_EXPLORER="
 "
 PREVIEW_SCRIPT_FOR_PLAYLISTS_EXPLORER="
 
-  MAGENTA='\x1b[38;2;215;0;95m'
+  MAGENTA='\e[38;5;178m'
   BOLD=\$(tput bold)
   RESET=\$(tput sgr0)
 
