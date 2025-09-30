@@ -1,45 +1,28 @@
-# yt-x
-
-![GitHub Issues or Pull Requests](https://img.shields.io/github/issues/Benex254/yt-x)
-![GitHub License](https://img.shields.io/github/license/Benex254/yt-x)
-![GitHub file size in bytes](https://img.shields.io/github/size/Benex254/yt-x/yt-x)
-![GitHub Release](https://img.shields.io/github/v/release/Benex254/yt-x)
-![GitHub commit activity](https://img.shields.io/github/commit-activity/m/Benex254/yt-x)
+# Fork de yt-x
 
 Browse YouTube from your terminal.
 Plus other sites yt-dlp supports.
 
-Inspired by [magic-tape](https://gitlab.com/christosangel/magic-tape)
-
-[yt-x-github-demo.webm](https://github.com/user-attachments/assets/08e491cc-fc91-4f13-849b-6ce8e78bf6f0)
-
-<details>
-<summary>Full Demo</summary>
-  
-[yt-x-full-github-demo.webm](https://github.com/user-attachments/assets/06e388c4-4399-4358-a6cc-68045db48177)
-
-</details>
-
 ## Features
 
-- **Interactive Menu**: Text-based UI using `fzf` or `rofi` for seamless navigation.
-- **YouTube-Specific Menus**: Access your feed, trending videos, playlists, watch later, subscriptions feed, liked videos, clips.
-- **Playback Support**: Play videos and audio via `mpv` or `vlc`.
-- **Search Functionality**: Search for videos, channels and playlists directly.
-- **Channel Exploration**: Explore channels, including their videos, streams, podcasts, shorts, and playlists.
-- **Saved Channels**: Bookmark your favorite channels for quick access, with support for importing existing subscriptions.
-- **Saved Videos**: Save videos to watch later.
-- **Mixes**: Generate and explore YouTube song mixes.
-- **Yt-x Shell:** Run custom yt-dlp and mpv commands for downloading and viewing videos and playlists
-- **Custom Playlists**: Save playlists for easier access.
-- **Download Management**: Download videos, audio, and playlists using `yt-dlp`.
-- **History & Recents**: Track your recent videos and search history.
-- **Configuration Management**: Customize and manage configurations for yt-x, mpv and yt-dlp with ease.
-- **Extensions:** Extend yt-x with your own custom ui and preview logic allowing more precise coverage of other sites that yt-dlp supports🥳
-- **Custom Commands:** Basically a simple way to achieve the same thing with extensions. A custom command is just a yt-dlp command that loads a playlist or playlist like json.
-- **Miscellaneous Features**:
-  - Shell completions for `bash`, `zsh`, and `fish`.
-  - Desktop entry generation for easy access.
+-   **Interactive Menu**: Text-based UI using `fzf` or `rofi` for seamless navigation.
+-   **YouTube-Specific Menus**: Access your feed, trending videos, playlists, watch later, subscriptions feed, liked videos, clips.
+-   **Playback Support**: Play videos and audio via `mpv` or `vlc`.
+-   **Search Functionality**: Search for videos, channels and playlists directly.
+-   **Channel Exploration**: Explore channels, including their videos, streams, podcasts, shorts, and playlists.
+-   **Saved Channels**: Bookmark your favorite channels for quick access, with support for importing existing subscriptions.
+-   **Saved Videos**: Save videos to watch later.
+-   **Mixes**: Generate and explore YouTube song mixes.
+-   **Yt-x Shell:** Run custom yt-dlp and mpv commands for downloading and viewing videos and playlists
+-   **Custom Playlists**: Save playlists for easier access.
+-   **Download Management**: Download videos, audio, and playlists using `yt-dlp`.
+-   **History & Recents**: Track your recent videos and search history.
+-   **Configuration Management**: Customize and manage configurations for yt-x, mpv and yt-dlp with ease.
+-   **Extensions:** Extend yt-x with your own custom ui and preview logic allowing more precise coverage of other sites that yt-dlp supports🥳
+-   **Custom Commands:** Basically a simple way to achieve the same thing with extensions. A custom command is just a yt-dlp command that loads a playlist or playlist like json.
+-   **Miscellaneous Features**:
+    -   Shell completions for `bash`, `zsh`, and `fish`.
+    -   Desktop entry generation for easy access.
 
 ## 📥 Installation
 
@@ -50,10 +33,13 @@ Inspired by [magic-tape](https://gitlab.com/christosangel/magic-tape)
 ### <samp>On NixOS, you can install packages using two main methods:</samp>
 
 1. **Imperative/Direct installation**:
+
 ```bash
 nix profile install github:Benexl/yt-x
 ```
+
 #
+
 2. **Declarative/Config-based**:
 
     2.1 Add the following to your `flake.nix`:
@@ -70,14 +56,17 @@ nix profile install github:Benexl/yt-x
     ```
 
     2.2 Then, add Yt-x to your packages:
-    > For system wide installation in *configuration.nix*
+
+    > For system wide installation in _configuration.nix_
+
     ```nix
     environment.systemPackages = with pkgs; [
       inputs.yt-x.packages."${system}".default
     ];
     ```
 
-    > For user level installation in *home.nix*
+    > For user level installation in _home.nix_
+
     ```nix
     home.packages = with pkgs; [
       inputs.yt-x.packages."${system}".default
@@ -102,39 +91,37 @@ yay -S yt-x-git
 
 ### Cross-platform
 
-
 ```bash
 # NOTE: ~/.local/bin should exist and be in path for this to work
 curl -sL "https://raw.githubusercontent.com/Benexl/yt-x/refs/heads/master/yt-x" -o ~/.local/bin/yt-x && chmod +x ~/.local/bin/yt-x
 ```
 
-
 ## Dependencies
 
 ### Required
 
-- [jq](https://github.com/jqlang/jq) - JSON parsing.
-- [curl](https://curl.se/) - Download preview images.
-- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Fetch YouTube data.
-- [fzf](https://github.com/junegunn/fzf) - Main UI navigation.
-- [mpv](https://mpv.io/) - Video and audio playback.
-- [ffmpeg](https://www.ffmpeg.org/) - Proper HLS stream downloading.
-- [bash](https://www.gnu.org/software/bash/) - Script interpreter.
-- [nerdfont](https://www.nerdfonts.com/) - for the icons
+-   [jq](https://github.com/jqlang/jq) - JSON parsing.
+-   [curl](https://curl.se/) - Download preview images.
+-   [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Fetch YouTube data.
+-   [fzf](https://github.com/junegunn/fzf) - Main UI navigation.
+-   [mpv](https://mpv.io/) - Video and audio playback.
+-   [ffmpeg](https://www.ffmpeg.org/) - Proper HLS stream downloading.
+-   [bash](https://www.gnu.org/software/bash/) - Script interpreter.
+-   [nerdfont](https://www.nerdfonts.com/) - for the icons
 
 ### Optional
 
-- [gum](https://github.com/charmbracelet/gum) - Enhanced UI (highly recommended).
-- [rofi](https://github.com/davatorium/rofi) - Alternate UI.
-- **terminal image viewer:**
-  - [chafa](https://github.com/hpjansson/chafa) - Cross-terminal image rendering (recommended).
-  - [icat](https://sw.kovidgoyal.net/kitty/kittens/icat/) - recommended for kitty terminal and ghostty
-  - [imgcat](https://github.com/danielgatis/imgcat)
-- **terminal with image rendering support:**
-  - [kitty](https://sw.kovidgoyal.net/kitty/) - currently has the best image rendering capabilities (recommended)
-  - [wezterm](https://wezfurlong.org/wezterm/index.html)
-  - [ghostty](https://github.com/ghostty-org/ghostty)
-   
+-   [gum](https://github.com/charmbracelet/gum) - Enhanced UI (highly recommended).
+-   [rofi](https://github.com/davatorium/rofi) - Alternate UI.
+-   **terminal image viewer:**
+    -   [chafa](https://github.com/hpjansson/chafa) - Cross-terminal image rendering (recommended).
+    -   [icat](https://sw.kovidgoyal.net/kitty/kittens/icat/) - recommended for kitty terminal and ghostty
+    -   [imgcat](https://github.com/danielgatis/imgcat)
+-   **terminal with image rendering support:**
+    -   [kitty](https://sw.kovidgoyal.net/kitty/) - currently has the best image rendering capabilities (recommended)
+    -   [wezterm](https://wezfurlong.org/wezterm/index.html)
+    -   [ghostty](https://github.com/ghostty-org/ghostty)
+
 ---
 
 ## Usage
@@ -224,8 +211,8 @@ To customise download options with yt-dlp you can add something like this to `yt
 
 For additional enhancements, consider:
 
-- [uosc](https://github.com/tomasklaen/uosc) for a modern `mpv` UI.
-- [thumbfast](https://github.com/po5/thumbfast) for thumbnail timeline previews.
+-   [uosc](https://github.com/tomasklaen/uosc) for a modern `mpv` UI.
+-   [thumbfast](https://github.com/po5/thumbfast) for thumbnail timeline previews.
 
 ## Custom Playlists
 
@@ -233,14 +220,16 @@ Define custom playlists by editing `~/.config/yt-x/custom_playlists.json` (or us
 
 ```json
 [
-  {
-    "name": "<playlist name>",
-    "playlistUrl": "https://www.youtube.com/playlist?list=<playlist-id>",
-    "playlistWatchUrl": "https://www.youtube.com/watch?list=<playlist-id>"
-  }
+    {
+        "name": "<playlist name>",
+        "playlistUrl": "https://www.youtube.com/playlist?list=<playlist-id>",
+        "playlistWatchUrl": "https://www.youtube.com/watch?list=<playlist-id>"
+    }
 ]
 ```
+
 ## Theming
+
 To change the default colorscheme, set `YT_X_FZF_OPTS` env var and give it custom fzf opts.
 
 eg. (.bashrc)
@@ -255,29 +244,3 @@ export YT_X_FZF_OPTS=$FZF_DEFAULT_OPTS'
 --border="rounded" --border-label="" --preview-window="border-rounded" --prompt="> "
 --marker=">" --pointer="◆" --separator="─" --scrollbar="│"'
 ```
-
-## Other Terminal Browsers I Made
-[lib-x](https://github.com/Benexl/lib-x) - browse your calibre library from the terminal
-
-[fastanime](https://github.com/Benexl/FastAnime) - browse anime from the terminal
-
-
-
-## Contribution
-
-Pull requests are highly welcome!
-
-## Support
-
-Need help? Join the community on Discord:
-
-<p align="center">
-<a href="https://discord.gg/HBEmAwvbHV">
-<img src="https://invidget.switchblade.xyz/C4rhMA4mmK">
-</a>
-</p>
-
-## Supporting the Project
-
-Give the project a star and consider contributing to the codebase.
-
