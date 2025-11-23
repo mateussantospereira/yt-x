@@ -165,7 +165,7 @@ load_config() {
   [ -z "$SEARCH_HISTORY" ] && SEARCH_HISTORY="true"
 
   DOWNLOAD_DIRECTORY="$(find_config_option "DOWNLOAD_DIRECTORY")"
-  [ -z "$DOWNLOAD_DIRECTORY" ] && DOWNLOAD_DIRECTORY="${XDG_VIDEOS_DIR:-"$HOME"/Videos}/$CLI_NAME"
+  [ -z "$DOWNLOAD_DIRECTORY" ] && DOWNLOAD_DIRECTORY="${XDG_VIDEOS_DIR:-"$HOME"/Vídeos}/$CLI_NAME"
   [ -d "$DOWNLOAD_DIRECTORY" ] || mkdir -p "$DOWNLOAD_DIRECTORY"
 
   UPDATE_CHECK="$(find_config_option "UPDATE_CHECK")"
