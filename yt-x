@@ -12,31 +12,30 @@
 
 CLI_HEADER='
 
-Youtube
+YouTube
 
 '
 
 # CLI_NAME=${0##*/}
-CLI_NAME="yt-x"
+CLI_NAME="${YT_X_APP_NAME:-yt-x}"
+
 CLI_VERSION="0.4.5"
 CLI_AUTHOR="Benexl"
-CLI_GIT_UPDATE="https://raw.githubusercontent.com/mateussantospereira/yt-x/refs/heads/master/yt-x" 
 CLI_DIR="$(dirname "$(realpath "$0")")"
 CLI_CONFIG_DIR="${XDG_CONFIG_HOME:-"$HOME"/.config}/$CLI_NAME"
 CLI_EXTENSION_DIR="$CLI_CONFIG_DIR/extensions"
 CLI_CACHE_DIR="${XDG_CACHE_HOME:-"$HOME"/.cache}/$CLI_NAME"
-CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR="$CLI_CACHE_DIR/preview_images_channels"
-CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR="$CLI_CACHE_DIR/preview_images_videos"
+CLI_PREVIEW_IMAGES_CACHE_DIR="$CLI_CACHE_DIR/preview_images"
 CLI_YT_DLP_ARCHIVE="$CLI_CACHE_DIR/yt-dlp-archive"
 CLI_AUTO_GEN_PLAYLISTS="$CLI_CACHE_DIR/playlists"
 CLI_PREVIEW_SCRIPTS_DIR="$CLI_CACHE_DIR/preview_text"
 [ -d "$CLI_CONFIG_DIR" ] || mkdir -p "$CLI_CONFIG_DIR"
 [ -d "$CLI_EXTENSION_DIR" ] || mkdir -p "$CLI_EXTENSION_DIR"
-[ -d "$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR" ] || mkdir -p "$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR"
-[ -d "$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR" ] || mkdir -p "$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR"
+[ -d "$CLI_PREVIEW_IMAGES_CACHE_DIR" ] || mkdir -p "$CLI_PREVIEW_IMAGES_CACHE_DIR"
 [ -d "$CLI_PREVIEW_SCRIPTS_DIR" ] || mkdir -p "$CLI_PREVIEW_SCRIPTS_DIR"
 [ -d "$CLI_YT_DLP_ARCHIVE" ] || mkdir -p "$CLI_YT_DLP_ARCHIVE"
 [ -d "$CLI_AUTO_GEN_PLAYLISTS" ] || mkdir -p "$CLI_AUTO_GEN_PLAYLISTS"
+CLI_SUPPORT_PROJECT_URL="https://buymeacoffee.com/benexl"
 
 case "$(uname -a)" in
 *ndroid) PLATFORM="android" ;;
@@ -114,9 +113,9 @@ UPDATE_CHECK: $UPDATE_CHECK
 "
 }
 
-find_config_option () {
-    local option=$1
-    awk -F': ' "/^$option:/ && !/#/ {print \$2}" "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
+find_config_option() {
+  local option=$1
+  awk -F': ' "/^$option:/ && !/#/ {print \$2}" "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
 }
 
 load_config() {
@@ -152,6 +151,15 @@ load_config() {
   PLAYER="$(find_config_option "PLAYER")"
   [ -z "$PLAYER" ] && PLAYER='mpv'
 
+  # Detect correct mpv command (mpv or mpv.exe)
+  if command -v mpv >/dev/null 2>&1; then
+    MPV_CMD="mpv"
+  elif command -v mpv.exe >/dev/null 2>&1; then
+    MPV_CMD="mpv.exe"
+  else
+    MPV_CMD="mpv"  # fallback
+  fi
+
   PREFERRED_BROWSER="$(find_config_option "PREFERRED_BROWSER")"
   [ -n "$PREFERRED_BROWSER" ] && PREFERRED_BROWSER="--cookies-from-browser $PREFERRED_BROWSER"
 
@@ -165,7 +173,9 @@ load_config() {
   [ -z "$SEARCH_HISTORY" ] && SEARCH_HISTORY="true"
 
   DOWNLOAD_DIRECTORY="$(find_config_option "DOWNLOAD_DIRECTORY")"
-  [ -z "$DOWNLOAD_DIRECTORY" ] && DOWNLOAD_DIRECTORY="${XDG_VIDEOS_DIR:-"$HOME"/Vídeos}/$CLI_NAME"
+  DOWNLOAD_DIRECTORY=${DOWNLOAD_DIRECTORY/#\~/${HOME}}     # expand ~
+  DOWNLOAD_DIRECTORY=${DOWNLOAD_DIRECTORY/#\$HOME/${HOME}} # expand $HOME
+  [ -z "$DOWNLOAD_DIRECTORY" ] && DOWNLOAD_DIRECTORY="${XDG_VIDEOS_DIR:-"$HOME"/Videos}/$CLI_NAME"
   [ -d "$DOWNLOAD_DIRECTORY" ] || mkdir -p "$DOWNLOAD_DIRECTORY"
 
   UPDATE_CHECK="$(find_config_option "UPDATE_CHECK")"
@@ -193,7 +203,9 @@ load_config() {
       [ -s "$CLI_EXTENSION_DIR/$ext" ] && . "$CLI_EXTENSION_DIR/$ext"
     done
   fi
-  print_config >"$CLI_CONFIG_DIR/${CLI_NAME}.conf"
+  if ! [ -s "$CLI_CONFIG_DIR/${CLI_NAME}.conf" ]; then
+    print_config >"$CLI_CONFIG_DIR/${CLI_NAME}.conf"
+  fi
   export FZF_DEFAULT_OPTS PRETTY_PRINT PLATFORM IMAGE_RENDERER
 }
 send_notification() {
@@ -215,7 +227,7 @@ update_script() {
     fi
   fi
 
-  update=$(curl -s "$CLI_GIT_UPDATE" || byebye 1)
+  update=$(curl -s "https://raw.githubusercontent.com/mateussantospereira/yt-x/refs/heads/master/yt-x" || byebye 1)
   update="$(printf '%s\n' "$update" | diff -u "$yt_x_path" - 2>/dev/null)"
   if [ -z "$update" ]; then
     send_notification "Script is up to date :)"
@@ -230,10 +242,10 @@ update_script() {
 }
 
 check_update() {
-  update=$(curl -s "$CLI_GIT_UPDATE")
+  update=$(curl -s "https://raw.githubusercontent.com/mateussantospereira/yt-x/refs/heads/master/yt-x")
   update="$(printf '%s\n' "$update" | diff -u "$(command -v yt-x)" - 2>/dev/null)"
   if [ -n "$update" ]; then
-    confirm "An update has been found would you like to see the changes before deciding whether to update" && echo "$update" | less
+    confirm "An update has been found would you like to see the changes before deciding whether to update?" && echo "$update" | less
     if [ "$PREFERRED_SELECTOR" = "fzf" ]; then
       answer=$(prompt "$1")
     else
@@ -255,10 +267,6 @@ fzf_preview() {
   fi
   if ! [ "$IMAGE_RENDERER" = "icat" ] && [ -z "$KITTY_WINDOW_ID" ] && [ "$((FZF_PREVIEW_TOP + FZF_PREVIEW_LINES))" -eq "$(stty size </dev/tty | awk "{print \$1}")" ]; then
     dim=${FZF_PREVIEW_COLUMNS}x$((FZF_PREVIEW_LINES - 1))
-  fi
-
-  if [ -z "$KITTY_WINDOW_ID"]; then
-    dim=$((FZF_PREVIEW_COLUMNS - 2))
   fi
 
   if [ "$IMAGE_RENDERER" = "icat" ] && [ -z "$GHOSTTY_BIN_DIR" ]; then
@@ -300,7 +308,7 @@ confirm() {
     gum confirm "$1"
   else
     echo "$CLI_HEADER" >/dev/stderr
-    printf "%s [y/N]: " "$1" > /dev/stderr
+    printf "%s [y/N]: " "$1" >/dev/stderr
     read -r CONFIRMED
     case "$CONFIRMED" in
     y | Y)
@@ -385,7 +393,9 @@ generate_text_preview() {
     )
 
     live_status=$(echo "$video" | jq '.live_status' -r)
-    [ "$live_status" = "null" ] && live_status='false'
+    [ "$live_status" = "is_live" ] && live_status='Online'
+    [ "$live_status" = "was_live" ] && live_status='Offline'
+    [ "$live_status" = "null" ] && live_status='False'
 
     description=$(echo "$video" | jq '.description' -r | sed "s/\"//g;s/%//g")
     channel=$(echo "$video" | jq '.channel' -r)
@@ -468,7 +478,7 @@ generate_text_preview() {
 
     printf "
 
-if [ -f \"$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR/${preview_image}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR/${preview_image}.jpg\" 2>/dev/null;
+if [ -f \"$CLI_PREVIEW_IMAGES_CACHE_DIR/${preview_image}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CACHE_DIR/${preview_image}.jpg\" 2>/dev/null;
 else echo loading preview image...;
 fi
 ll=1
@@ -492,7 +502,7 @@ echo
 
 ! [ \"$description\" = \"null\" ] && echo -n \"%s\";
 
-" > "$CLI_PREVIEW_SCRIPTS_DIR/$(echo "$video" | jq ".title" -r | generate_sha256).txt"
+" "$description" >"$CLI_PREVIEW_SCRIPTS_DIR/$(echo "$video" | jq ".title" -r | generate_sha256).txt"
 
   done
 }
@@ -500,14 +510,9 @@ echo
 download_preview_images() {
   local url video filename
 
-  if [ -n "$2" ]; then
-    CLI_PREVIEW_IMAGES_CACHE_DIR=$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR
-  else
-    CLI_PREVIEW_IMAGES_CACHE_DIR=$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR
-  fi
-  
   rm -rf $CLI_PREVIEW_IMAGES_CACHE_DIR/*
   rm -rf $CLI_PREVIEW_SCRIPTS_DIR/*
+
 
   echo generating preview in the background...
   generate_text_preview "$1" &
@@ -530,7 +535,6 @@ download_preview_images() {
   done
   curl -s -K "$CLI_PREVIEW_IMAGES_CACHE_DIR/previews.txt" 2>/dev/null &
 }
-
 launcher_with_preview() {
   case "$PREFERRED_SELECTOR" in
   rofi)
@@ -557,7 +561,6 @@ launcher_with_preview() {
   esac
 
 }
-
 init_pretty_print() {
   if [ "$PRETTY_PRINT" = "true" ]; then
     RED=$(tput setaf 1)
@@ -570,17 +573,37 @@ init_pretty_print() {
 
 byebye() {
   clear
-  echo "Have a good day $USERNAME"
+  echo "Have a good day $USER"
   exit "${1:-0}"
 }
-
 prompt() {
+  HISTORY=$(tail -n 10 "$CLI_CACHE_DIR/search_history.txt" | grep -v '^\s*$' | tac | nl -w2 -s'. ')
+  HISTORY_TEXT="Enter :<command> <query> for extended search\nFilter by upload date - :hour, :today, :week, :month, :year\nFilter by content - :video, :movie, :live\n Filter by features - :hd, :4k, :hdr, :subtitles, :360, :vr, :3d, :local\nSort videos by - :newest, :views, :rating\n-----------------------------\nSearch history:\n$HISTORY\n-----------------------------\n(Enter !<n> to select from history. Example: !1)\n"
   if [ "$PREFERRED_SELECTOR" = "rofi" ]; then
-    rofi -dmenu -p "$1: "
+    if [ "$PROMPT_CONTEXT" = "Search" ] && [ "$SEARCH_HISTORY" = "true" ] && [ -n "$HISTORY" ]; then
+      rofi -dmenu \
+        -p "$1" \
+        -mesg "$(printf "\nSearch history:\n%s\n(Enter !&lt;n&gt; to select from history. Example: !1)\n" "$HISTORY")" \
+        <<<""
+      PROMPT_CONTEXT=""
+    else
+      rofi -dmenu -p "$1: "
+    fi
   elif command -v "gum" >/dev/null 2>&1; then
-    gum input --header "$CLI_HEADER" --prompt "$1: " --value "$2"
+    if [ "$PROMPT_CONTEXT" = "Search" ] && [ "$SEARCH_HISTORY" = "true" ] && [ -n "$HISTORY" ]; then
+      #Combine the YT-X header with the search history
+      HEADER_WITH_HISTORY=$(echo -e "$CLI_HEADER\n$HISTORY_TEXT")
+      gum input --header "$HEADER_WITH_HISTORY" --prompt "$1: " --value "$2"
+      PROMPT_CONTEXT=""
+    else
+      gum input --header "$CLI_HEADER" --prompt "$1: " --value "$2"
+    fi
   else
     echo "$CLI_HEADER" >/dev/stderr
+    if [ "$PROMPT_CONTEXT" = "Search" ] && [ "$SEARCH_HISTORY" = "true" ] && [ -n "$HISTORY" ]; then
+      echo -e "$HISTORY_TEXT" >/dev/stderr
+      PROMPT_CONTEXT=""
+    fi
     printf "%s: " "$1" >/dev/stderr
     read -r VAL
     echo "$VAL"
@@ -613,7 +636,7 @@ PREVIEW_SCRIPT_FOR_VIDEOS="
 "
 PREVIEW_SCRIPT_FOR_CHANNELS="
 
-  MAGENTA='\e[38;5;178m'
+  MAGENTA='\x1b[38;2;215;0;95m'
   BOLD=\$(tput bold)
   RESET=\$(tput sgr0)
 
@@ -641,7 +664,7 @@ PREVIEW_SCRIPT_FOR_CHANNELS="
     
     description=\$(echo \"\$video\"| jq '.description' -r);
     
-    if [ -f \"$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
+    if [ -f \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
     else echo loading preview image...;
     fi
 
@@ -661,7 +684,7 @@ PREVIEW_SCRIPT_FOR_CHANNELS="
 
 PREVIEW_SCRIPT_FOR_CHANNELS_EXPLORER="
 
-  MAGENTA='\e[38;5;178m'
+  MAGENTA='\x1b[38;2;215;0;95m'
   BOLD=\$(tput bold)
   RESET=\$(tput sgr0)
 
@@ -689,7 +712,7 @@ PREVIEW_SCRIPT_FOR_CHANNELS_EXPLORER="
     
     description=\$(echo \"\$video\"| jq '.description' -r);
     
-    if [ -f \"$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CHANNELS_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
+    if [ -f \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
     else echo loading preview image...;
     fi
 
@@ -708,7 +731,7 @@ PREVIEW_SCRIPT_FOR_CHANNELS_EXPLORER="
 "
 PREVIEW_SCRIPT_FOR_PLAYLISTS_EXPLORER="
 
-  MAGENTA='\e[38;5;178m'
+  MAGENTA='\x1b[38;2;215;0;95m'
   BOLD=\$(tput bold)
   RESET=\$(tput sgr0)
 
@@ -721,7 +744,7 @@ PREVIEW_SCRIPT_FOR_PLAYLISTS_EXPLORER="
     id=\$(echo \$video | jq '.thumbnails[-1].url' -r | generate_sha256);   
 
     
-    if [ -f \"$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_VIDEOS_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
+    if [ -f \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" ];then fzf_preview \"$CLI_PREVIEW_IMAGES_CACHE_DIR/\${id}.jpg\" 2>/dev/null;
     else echo loading preview image...;
     fi
 
@@ -747,16 +770,13 @@ playlist_explorer() {
           |map(.value))
           ") && ! [ "$ENABLE_PREVIEW" = "true" ] || ! [ "$PREFERRED_SELECTOR" = "fzf" ] && DOWNLOAD_IMAGES=1
     titles=$(echo "$search_results" | jq '.entries[].title' -r 2>/dev/null)
-    #download_preview_images "$search_results" ""
-    if [ $PREFERRED_SELECTOR = "fzf" ]; then 
-      download_preview_images "$search_results" "" && DOWNLOAD_IMAGES=1
-    fi
+    [ "$ENABLE_PREVIEW" = "true" ] && [ "$PREFERRED_SELECTOR" = "fzf" ] && [ "$DOWNLOAD_IMAGES" = 0 ] && download_preview_images "$search_results" "" && DOWNLOAD_IMAGES=1
     export search_results SHELL
-    #if [ "$ENABLE_PREVIEW" = "true" ]; then
+    if [ "$ENABLE_PREVIEW" = "true" ]; then
       title="$(printf "%s\nNext\nPrevious\n${CYAN}󰌍${RESET}  Back\n${CYAN}󰍜${RESET}  Main Menu\n${RED}󰈆${RESET}  Exit" "$titles" | launcher_with_preview "select video" "$PREVIEW_SCRIPT_FOR_VIDEOS" | tr -d '\n' | sed 's/^[^0-9]  //g')"
-    #else
-     # title="$(printf "%s\nNext\nPrevious\nBack\nMain Menu\nExit" "$titles" | launcher "select video" | tr -d '\n' | sed 's/^[^0-9]  //g')"
-    #fi
+    else
+      title="$(printf "%s\nNext\nPrevious\nBack\nMain Menu\nExit" "$titles" | launcher "select video" | tr -d '\n' | sed 's/^[^0-9]  //g')"
+    fi
     clear
     title="$(echo "$title" | sed 's/"/\\"/g')"
     case "$title" in
@@ -779,7 +799,7 @@ playlist_explorer() {
     "Main Menu")
       break
       ;;
-    Back|"")
+    Back | "")
       break
       ;;
     Exit)
@@ -815,6 +835,9 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
       "Play All")
         if echo "$url" | grep -q "list=RD" || echo "$urlForAll" | grep -q "list=RD" || [ "$(echo "$search_results" | jq 'has("uploader_url") | not')" = "true" ]; then
           if [ -n "$urlForAll" ]; then
+            # Fix YouTube Mix URLs FIRST
+            url="${url/&start_radio=0/}"
+            urlForAll="${urlForAll/&start_radio=1/}"
             cached_playlist="$CLI_AUTO_GEN_PLAYLISTS/$(generate_sha256 "$urlForAll").m3u8"
             if ! [ -s "$cached_playlist" ]; then
               _mix_data=$(yt-dlp "$urlForAll" --flat-playlist -J)
@@ -839,7 +862,7 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
                 echo "" >>"$cached_playlist"
               done
             fi
-            mpv "$cached_playlist"
+            "$MPV_CMD" "$cached_playlist"
           else
             cached_playlist="$CLI_AUTO_GEN_PLAYLISTS/$(generate_sha256 "$url").m3u8"
 
@@ -866,13 +889,13 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
                 echo "" >>"$cached_playlist"
               done
             fi
-            mpv "$cached_playlist"
+            "$MPV_CMD" "$cached_playlist"
           fi
         else
           if [ -n "$urlForAll" ]; then
-            mpv "$urlForAll"
+            "$MPV_CMD" "$urlForAll"
           else
-            mpv "$url"
+            "$MPV_CMD" "$url"
           fi
         fi
         ;;
@@ -904,7 +927,7 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
                 echo "" >>"$cached_playlist"
               done
             fi
-            mpv "$cached_playlist" --no-video
+            "$MPV_CMD" "$cached_playlist" --no-video --force-window=no
           else
             cached_playlist="$CLI_AUTO_GEN_PLAYLISTS/$(generate_sha256 "$url").m3u8"
             if ! [ -s "$cached_playlist" ]; then
@@ -930,13 +953,13 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
                 echo "" >>"$cached_playlist"
               done
             fi
-            mpv "$cached_playlist" --no-video
+            "$MPV_CMD" "$cached_playlist" --no-video --force-window=no
           fi
         else
           if [ -n "$urlForAll" ]; then
-            mpv "$urlForAll" --no-video
+            "$MPV_CMD" "$urlForAll" --no-video --force-window=no
           else
-            mpv "$url" --no-video
+            "$MPV_CMD" "$url" --no-video --force-window=no
           fi
         fi
         ;;
@@ -956,7 +979,7 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
           yt_dlp_cmd=("yt-dlp" "$url" "--output" "$DOWNLOAD_DIRECTORY/videos/$playlist_name/%(channel)s/$enumerate_playlist%(title)s.%(ext)s" $PREFERRED_BROWSER)
           "${yt_dlp_cmd[@]}" --download-archive "$CLI_YT_DLP_ARCHIVE/$(echo -n -- "${yt_dlp_cmd[@]}" | generate_sha256)"
         fi
-        send_notification "Completed downloading $playlist_name"
+        send_notification "Completed downloading of $playlist_name"
         ;;
       "Download All (Audio Only)")
         playlist_name=$(prompt "Name of the playlist" "$playlist_title")
@@ -968,10 +991,10 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
           yt_dlp_cmd=("yt-dlp" "$url" "--audio-format" "mp3" '-x' '-f' 'bestaudio/best' "--output" "$DOWNLOAD_DIRECTORY/audio/$playlist_name/%(channel)s/$enumerate_playlist%(title)s.%(ext)s" $PREFERRED_BROWSER)
           "${yt_dlp_cmd[@]}" --download-archive "$CLI_YT_DLP_ARCHIVE/$(echo -n -- "${yt_dlp_cmd[@]}" | generate_sha256)"
         fi
-        send_notification "Completed downloading $playlist_name"
+        send_notification "Completed downloading of $playlist_name"
         ;;
       Listen)
-        printf "${MAGENTA}Now Listening to:${RESET} $title\n"
+        printf "${MAGENTA}Now Listening to:${RESET} %s\n" "$title"
         video_url=$(echo "$video" | jq '.url' -r)
         if echo "$video_url" | grep -q "list=RD"; then
           video_id=$(echo "$video" | jq '.id' -r | sed 's/RD//g')
@@ -999,7 +1022,7 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
               echo "" >>"$cached_playlist"
             done
           fi
-          mpv "$cached_playlist" --no-video
+          "$MPV_CMD" "$cached_playlist" --no-video --force-window=no
         else
           if ! [ "$PLAYER" = mpv ] || [ "$PLATFORM" = android ]; then
             video_url=$(yt-dlp "$video_url" -q --no-warnings --get-url --format "bestaudio/best[height<=$VIDEO_QUALITY]/best" 2>/dev/null | tail -n 1)
@@ -1019,7 +1042,7 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
           *)
             case "$PLAYER" in
             mpv)
-              mpv "$video_url" --no-video
+              "$MPV_CMD" "$video_url" --no-video --force-window=no
               ;;
             vlc) vlc "$video_url" --video-title "$title" ;;
             esac
@@ -1053,7 +1076,7 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
         search_results="$_search_results"
         ;;
       Watch)
-        printf "${MAGENTA}Now watching:${RESET} $title\n"
+        printf "${MAGENTA}Now watching:${RESET} %s\n" "$title"
 
         video_url=$(echo "$video" | jq '.url' -r)
         if echo "$video_url" | grep -q "list=RD"; then
@@ -1085,7 +1108,7 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
               echo "" >>"$cached_playlist"
             done
           fi
-          mpv "$cached_playlist"
+          "$MPV_CMD" "$cached_playlist"
         else
           if ! [ "$PLAYER" = mpv ] || [ "$PLATFORM" = android ]; then
             video_url=$(yt-dlp "$video_url" -q --no-warnings --get-url --format "best[height<=$VIDEO_QUALITY]/best" 2>/dev/null | tail -n 1)
@@ -1105,7 +1128,7 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
           *)
             case "$PLAYER" in
             mpv)
-              mpv "$video_url"
+              "$MPV_CMD" "$video_url"
               ;;
             vlc) vlc "$video_url" --video-title "$title" ;;
             esac
@@ -1153,12 +1176,13 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
         ;;
       "Subscribe To Channel")
         # TODO: use youtube api to enable video subscriptions
-        echo contribute to the project by adding this feature
+        send_notification "contribute to the project by adding this feature"
         sleep "$NOTIFICATION_DURATION"
         ;;
       "Visit Channel")
         # TODO: use youtube api to enable video subscriptions
         send_notification "contribute to the project by adding this feature"
+        sleep "$NOTIFICATION_DURATION"
         ;;
       "Open in Browser")
         if command -v "open" >/dev/null 2>&1; then
@@ -1172,14 +1196,14 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Media Action" | sed 's/.  //g')"
       Download)
         video_url=$(echo "$video" | jq '.url' -r)
         yt-dlp "$video_url" --output "$DOWNLOAD_DIRECTORY/videos/individual/%(channel)s/%(title)s.%(ext)s" $PREFERRED_BROWSER
-        send_notification "Completed downloading $title"
+        send_notification "Completed downloading of $title"
         ;;
       "Download (Audio Only)")
         video_url=$(echo "$video" | jq '.url' -r)
         yt-dlp "$video_url" -x -f 'bestaudio' --audio-format mp3 --output "$DOWNLOAD_DIRECTORY/audio/individual/%(channel)s/%(title)s.%(ext)s" $PREFERRED_BROWSER
-        send_notification "Completed downloading $title"
+        send_notification "Completed downloading of $title"
         ;;
-      Back|"")
+      Back | "")
         break
         ;;
       Shell)
@@ -1231,7 +1255,7 @@ get_channels_data() {
     channels_data=$(cat "$CLI_CONFIG_DIR/subscriptions.json")
   else
     echo Loading subscriptions...
-    [ -n "$PREFERRED_BROWSER" ] && channels_data=$(yt-dlp "https://www.youtube.com/feed/channels" --flat-playlist $PREFERRED_BROWSER -J) || send_notification "Failed to fetch subscriptions (please set preferred browser in config"
+    [ -n "$PREFERRED_BROWSER" ] && channels_data=$(yt-dlp "https://www.youtube.com/feed/channels" --flat-playlist $PREFERRED_BROWSER -J) || send_notification "Failed to fetch subscriptions (please set preferred browser in config)"
     ! [ "$FORCE_CHANNEL_THUMBNAILS_DOWNLOAD" = "0" ] && [ "$ENABLE_PREVIEW" = "true" ] && download_preview_images "$channels_data" "https:"
     [ -n "$channels_data" ] && ! [ "$channels_data" = "null" ] && echo "$channels_data" >"$CLI_CONFIG_DIR/subscriptions.json" || send_notification "Failed to fetch subscriptions"
     clear
@@ -1265,7 +1289,7 @@ playlists_explorer() {
     clear
     playlist_title="$(echo "$playlist_title" | sed 's/"/\\"/g')"
     case "$playlist_title" in
-    *Back|"")
+    *Back | "")
       break
       ;;
     *Exit)
@@ -1335,7 +1359,7 @@ ${RED}󰈆${RESET}  Exit
       ;;
     Subscribe)
       if ! [ -s "$CLI_CONFIG_DIR/subscriptions.json" ]; then
-        if confirm "Would you like to import your youtube subscriptions first; you wont be able to do so again unless you delete the subscribtiofile"; then
+        if confirm "Would you like to import your youtube subscriptions first? You wont be able to do so again unless you delete subscriptions.json"; then
           _channels_data=$(yt-dlp "https://www.youtube.com/feed/channels" --flat-playlist $PREFERRED_BROWSER -J)
           echo "$_channels_data" >"$CLI_CONFIG_DIR/subscriptions.json"
         else
@@ -1405,22 +1429,61 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Action" | sed 's/.*  //g')"
     ;;
   Search)
     clear
+    PROMPT_CONTEXT="Search"
     if [ -z "$CMD_SEARCH_TERMS" ]; then
-           search_term="$(prompt "Enter term to search for")"
+      search_term="$(prompt "Enter term to search for")"
+      if [[ "$search_term" =~ ^![0-9]{1,2}$ ]]; then
+        index="${search_term:1}" # remove the leading "!"
+        history_item=$(tail -n 10 "$CLI_CACHE_DIR/search_history.txt" | tac | sed -n "${index}p")
+        if [[ -n "$history_item" ]]; then
+          echo "Using history item #$index: $history_item"
+          search_term="$history_item"
+        else
+          echo "No such history item: $index"
+        fi
+      fi
       # Exit if user presses ESC or leaves search empty in rofi
       if [ "$PREFERRED_SELECTOR" = "rofi" ] && [ -z "$search_term" ]; then
-        echo "Search canceled. No search term provided."
+        echo "Search cancelled. No search term provided."
         return 1
       fi
     else
       search_term="$CMD_SEARCH_TERMS"
       unset CMD_SEARCH_TERMS
     fi
+    if [[ "$search_term" =~ ^(:[a-z]+)[[:space:]]+(.+) ]]; then
+      search_filter="${BASH_REMATCH[1]}"
+      search_term="${BASH_REMATCH[2]}"
+      case "$search_filter" in
+      ":hour") sp="EgIIAQ%253D%253D" ;;
+      ":today") sp="EgIIAg%253D%253D" ;;
+      ":week") sp="EgIIAw%253D%253D" ;;
+      ":month") sp="EgIIBA%253D%253D" ;;
+      ":year") sp="EgIIBQ%253D%253D" ;;
+      ":video") sp="EgIQAQ%253D%253D" ;;
+      ":movie") sp="EgIQBA%253D%253D" ;;
+      ":live") sp="EgJAAQ%253D%253D" ;;
+      ":short") sp="EgQQARgB" ;;
+      ":long") sp="EgQQARgC" ;;
+      ":4k") sp="EgJwAQ%253D%253D" ;;
+      ":hd") sp="EgIgAQ%253D%253D" ;;
+      ":subtitles") sp="EgIoAQ%253D%253D" ;;
+      ":360") sp="EgJ4AQ%253D%253D" ;;
+      ":vr") sp="EgLIAQ%253D%253D" ;;
+      ":3d") sp="EgI4AQ%253D%253D" ;;
+      ":hdr") sp="EgPIAQ%253D%253D" ;;
+      ":local") sp="EgO4AQ%253D%253D" ;;
+      ":newest") sp="CAISAhAB" ;;
+      ":views") sp="CAMSAhAB" ;;
+      ":rating") sp="CAESAhAB" ;;
+      *) sp="EgIQAQ%253D%253D" ;;
+      esac
+    fi
     [ "$SEARCH_HISTORY" = "true" ] && [ -s "$CLI_CACHE_DIR/search_history.txt" ] && history=$(grep --invert-match "^$search_term\$" "$CLI_CACHE_DIR/search_history.txt")
     [ "$SEARCH_HISTORY" = "true" ] && [ -s "$CLI_CACHE_DIR/search_history.txt" ] && echo "$history" >$CLI_CACHE_DIR/search_history.txt
     [ "$SEARCH_HISTORY" = "true" ] && echo "$search_term" >>"$CLI_CACHE_DIR/search_history.txt"
     search_term=$(echo "$search_term" | jq -Rr '@uri')
-    url="https://www.youtube.com/results?search_query=$search_term&sp=EgIQAQ%253D%253D"
+    url="https://www.youtube.com/results?search_query=$search_term&sp=$sp"
     search_results=$(run_yt_dlp "$url")
     playlist_explorer
     ;;
@@ -1457,7 +1520,7 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Action" | sed 's/.*  //g')"
     done
     ;;
   Custom\ Playlists)
-    ! [ -s "$CUSTOM_PLAYLISTS" ] && echo "You dont have any custom playlists create them here <$CUSTOM_PLAYLISTS>" && sleep "$NOTIFICATION_DURATION" && main
+    ! [ -s "$CUSTOM_PLAYLISTS" ] && echo "You don't have any custom playlists. Create them here: <$CUSTOM_PLAYLISTS>" && sleep "$NOTIFICATION_DURATION" && main
     while true; do
       playlist_title=$(printf "%s\nBack" "$(jq -r '.|reverse|.[].name' "$CUSTOM_PLAYLISTS")" | launcher "Select Custom Playlist To Play")
       [ "$playlist_title" = "Back" ] || [ "$playlist_title" = "" ] && break
@@ -1488,14 +1551,16 @@ ${RED}󰈆${RESET}  Exit" | launcher "Select Action" | sed 's/.*  //g')"
     playlist_explorer
     ;;
   "Edit Config")
-    if command -v "$EDITOR" >/dev/null 2>&1; then
+    if command -v "$PREFERRED_EDITOR" >/dev/null 2>&1; then
+      $PREFERRED_EDITOR "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
+    elif command -v "$EDITOR" >/dev/null 2>&1; then
       $EDITOR "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
     elif command -v "open" >/dev/null 2>&1; then
       open "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
     elif command -v "xdg-open" >/dev/null 2>&1; then
       xdg-open "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
     else
-      send_notification "Could not find editor env ($EDITOR) or xdg-open or open"
+      send_notification "Could not find preferred editor ($PREFERRED_EDITOR) or editor env ($EDITOR) or xdg-open or open"
     fi
     load_config
     ;;
@@ -1522,7 +1587,7 @@ ${RED}󰈆${RESET}  Exit
         unset search_term
         while true; do
           clear
-          [ -z "$search_term" ] && search_term=$(prompt "What channel would you like to explore") && url="https://www.youtube.com/results?search_query=$search_term&sp=EgIQAg%253D%253D" && channels_data=$(
+          [ -z "$search_term" ] && search_term=$(prompt "What channel would you like to explore?") && url="https://www.youtube.com/results?search_query=$search_term&sp=EgIQAg%253D%253D" && channels_data=$(
             if command -v "gum" >/dev/null 2>&1; then
               gum spin --show-output -- yt-dlp "$url" -J --flat-playlist --extractor-args youtubetab:approximate_date $PREFERRED_BROWSER --playlist-start 1 --playlist-end $NO_OF_SEARCH_RESULTS
             else
@@ -1544,7 +1609,7 @@ ${RED}󰈆${RESET}  Exit
         ;;
       Explore\ Playlists)
         clear
-        search_term=$(prompt "What playlist would you like to explore")
+        search_term=$(prompt "What playlist would you like to explore?")
         url="https://www.youtube.com/results?search_query=$search_term&sp=EgIQAw%253D%253D"
         PLAYLISTS_EXTRA_ARGS="--playlist-start 1 --playlist-end $NO_OF_SEARCH_RESULTS"
         playlists_explorer
@@ -1588,7 +1653,7 @@ ${RED}󰈆${RESET}  Exit
         playlist_explorer
         ;;
       Custom\ Commands)
-        ! [ -s "$F_CUSTOM_CMDS" ] && send_notification "You dont have any custom cmds create them here <$F_CUSTOM_CMDS>"
+        ! [ -s "$F_CUSTOM_CMDS" ] && send_notification "You dont have any custom cmds. Create them here: <$F_CUSTOM_CMDS>"
         while true; do
           custom_cmd_name=$(printf "%s\nBack" "$(jq -r '.[].name' "$F_CUSTOM_CMDS")" | launcher "Select Custom Data Loader Command To Run")
           [ "$custom_cmd_name" = "Back" ] || [ "$custom_cmd_name" = "" ] && break
@@ -1606,66 +1671,76 @@ ${RED}󰈆${RESET}  Exit
         done
         ;;
       Edit\ Search\ History)
-        if command -v "$EDITOR" >/dev/null 2>&1; then
+        if command -v "$PREFERRED_EDITOR" >/dev/null 2>&1; then
+          $PREFERRED_EDITOR "$CLI_CACHE_DIR/search_history.txt"
+        elif command -v "$EDITOR" >/dev/null 2>&1; then
           $EDITOR "$CLI_CACHE_DIR/search_history.txt"
         elif command -v "open" >/dev/null 2>&1; then
           open "$CLI_CACHE_DIR/search_history.txt"
         elif command -v "xdg-open" >/dev/null 2>&1; then
           xdg-open "$CLI_CACHE_DIR/search_history.txt"
         else
-          send_notification "Could not find editor env ($EDITOR) or xdg-open or open"
+          send_notification "Could not find preferred editor ($PREFERRED_EDITOR) or editor env ($EDITOR) or xdg-open or open"
         fi
         ;;
       Edit\ Custom\ Playlists)
-        if command -v "$EDITOR" >/dev/null 2>&1; then
+        if command -v "$PREFERRED_EDITOR" >/dev/null 2>&1; then
+          $PREFERRED_EDITOR "$CLI_CACHE_DIR/custom_playlists.txt"
+        elif command -v "$EDITOR" >/dev/null 2>&1; then
           $EDITOR "$CLI_CONFIG_DIR/custom_playlists.json"
         elif command -v "open" >/dev/null 2>&1; then
           open "$CLI_CONFIG_DIR/custom_playlists.json"
         elif command -v "xdg-open" >/dev/null 2>&1; then
           xdg-open "$CLI_CONFIG_DIR/custom_playlists.json"
         else
-          send_notification "Could not find editor env ($EDITOR) or xdg-open or open"
+          send_notification "Could not find preferred editor ($PREFERRED_EDITOR) or editor env ($EDITOR) or xdg-open or open"
         fi
         ;;
       Edit\ Custom\ Commands)
-        if command -v "$EDITOR" >/dev/null 2>&1; then
+        if command -v "$PREFERRED_EDITOR" >/dev/null 2>&1; then
+          $PREFERRED_EDITOR "$F_CUSTOM_CMDS"
+        elif command -v "$EDITOR" >/dev/null 2>&1; then
           $EDITOR "$F_CUSTOM_CMDS"
         elif command -v "open" >/dev/null 2>&1; then
           open "$F_CUSTOM_CMDS"
         elif command -v "xdg-open" >/dev/null 2>&1; then
           xdg-open "$F_CUSTOM_CMDS"
         else
-          send_notification "Could not find editor env ($EDITOR) or xdg-open or open"
+          send_notification "Could not find preferred editor ($PREFERRED_EDITOR) or editor env ($EDITOR) or xdg-open or open"
         fi
         ;;
 
       Edit\ MPV\ Config)
-        if command -v "$EDITOR" >/dev/null 2>&1; then
+        if command -v "$PREFERRED_EDITOR" >/dev/null 2>&1; then
+          $PREFERRED_EDITOR "${XDG_CONFIG_HOME:-"$HOME"/.config}/mpv/mpv.conf"
+        elif command -v "$EDITOR" >/dev/null 2>&1; then
           $EDITOR "${XDG_CONFIG_HOME:-"$HOME"/.config}/mpv/mpv.conf"
         elif command -v "open" >/dev/null 2>&1; then
           open "${XDG_CONFIG_HOME:-"$HOME"/.config}/mpv/mpv.conf"
         elif command -v "xdg-open" >/dev/null 2>&1; then
           xdg-open "${XDG_CONFIG_HOME:-"$HOME"/.config}/mpv/mpv.conf"
         else
-          send_notification "Could not find editor env ($EDITOR) or xdg-open or open"
+          send_notification "Could not find preferred editor ($PREFERRED_EDITOR) or editor env ($EDITOR) or xdg-open or open"
         fi
         ;;
       "Edit yt-dlp Config")
-        if command -v "$EDITOR" >/dev/null 2>&1; then
+        if command -v "$PREFERRED_EDITOR" >/dev/null 2>&1; then
+          $PREFERRED_EDITOR "${XDG_CONFIG_HOME:-"$HOME"/.config}/yt-dlp/config"
+        elif command -v "$EDITOR" >/dev/null 2>&1; then
           $EDITOR "${XDG_CONFIG_HOME:-"$HOME"/.config}/yt-dlp/config"
         elif command -v "open" >/dev/null 2>&1; then
           open "${XDG_CONFIG_HOME:-"$HOME"/.config}/yt-dlp/config"
         elif command -v "xdg-open" >/dev/null 2>&1; then
           xdg-open "${XDG_CONFIG_HOME:-"$HOME"/.config}/yt-dlp/config"
         else
-          send_notification "Could not find editor env ($EDITOR) or xdg-open or open"
+          send_notification "Could not find preferred editor ($PREFERRED_EDITOR) or editor env ($EDITOR) or xdg-open or open"
         fi
         ;;
       Clear\ Search\ History)
-        confirm "Are you sure you want to clear your search history ($CLI_CACHE_DIR/search_history.txt)" && rm "$CLI_CACHE_DIR/search_history.txt"
+        confirm "Are you sure you want to clear your search history ($CLI_CACHE_DIR/search_history.txt)?" && rm "$CLI_CACHE_DIR/search_history.txt"
         ;;
       Sync\ YouTube\ Subscriptions)
-        if confirm "This will erase your local subs, are you sure you wish to proceed"; then
+        if confirm "This will erase your local subs, proceed?"; then
           echo "Syncing subscriptions..."
           [ -n "$PREFERRED_BROWSER" ] && channels_data=$(yt-dlp "https://www.youtube.com/feed/channels" --flat-playlist $PREFERRED_BROWSER -J) || send_notification "Failed to fetch subscriptions (please set preferred browser in config"
           download_preview_images "$channels_data" "https:"
@@ -1674,7 +1749,7 @@ ${RED}󰈆${RESET}  Exit
           send_notification "Sync cancelled"
         fi
         ;;
-      Back|"")
+      Back | "")
         break
         ;;
       Exit)
@@ -1687,7 +1762,7 @@ ${RED}󰈆${RESET}  Exit
       esac
     done
     ;;
-  Exit|"")
+  Exit | "")
     byebye
     ;;
   *)
@@ -1725,8 +1800,8 @@ Options:
     set the preferred selector for $CLI_NAME to use
   -p <player>,--player <player> [mpv/vlc]
     set the video player for $CLI_NAME to use
-  -x <extension>,--extension <extension> [name of extension file at $CLI_EXTENSION_DIR]
-    set the extension for $CLI_NAME to use
+  -x <extension>,--extension <extension> [name of extension file at $CLI_EXTENSION_DIR or full path]
+    set the extension for $CLI_NAME to use (accepts full path starting with /)
   --preview
     enable the preview window
   --no-preview
@@ -1764,22 +1839,22 @@ while [ $# -gt 0 ]; do
     exit 0
     ;;
   -e | --edit-config)
-    if command -v "$EDITOR" >/dev/null 2>&1; then
+    if command -v "$PREFERRED_EDITOR" >/dev/null 2>&1; then
+      $PREFERRED_EDITOR "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
+    elif command -v "$EDITOR" >/dev/null 2>&1; then
       $EDITOR "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
-    elif command -v "$PREFERRED_EDITOR" >/dev/null 2>&1; then
-      open "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
     elif command -v "open" >/dev/null 2>&1; then
       open "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
     elif command -v "xdg-open" >/dev/null 2>&1; then
       xdg-open "$CLI_CONFIG_DIR/${CLI_NAME}.conf"
     else
-      send_notification "Could not find editor env ($EDITOR) or xdg-open or open" && exit 1
+      send_notification "Could not find preferred editor ($PREFERRED_EDITOR) or editor env ($EDITOR) or xdg-open or open" && exit 1
     fi
 
     byebye
     ;;
   -U | --update)
-    check_update "A new version of $CLI_NAME has been found would you like to upgrade(y/n)"
+    check_update "A new version of $CLI_NAME has been found would you like to upgrade? (y/n)"
     exit 0
     ;;
   -S | --search)
@@ -1916,7 +1991,11 @@ Example:
     ;;
   -x | --extension)
     [ -n "$2" ] || usage 1
-    . "$CLI_EXTENSION_DIR/$2"
+    if [ "${2#/}" != "$2" ]; then
+      . "$2"
+    else
+      . "$CLI_EXTENSION_DIR/$2"
+    fi
     shift
     ;;
   *)
@@ -1929,7 +2008,7 @@ done
 # Check for updates if enabled
 if [ "$UPDATE_CHECK" = "true" ]; then
   # setup for ui
-  timestamp_file="$CLI_CACHE_DIR/last_update_check"
+  timestamp_file="$CLI_CACHE_DIR/.last_update_check"
 
   # Time interval in seconds (6 hours = 21600 seconds)
   interval=$((6 * 60 * 60))
@@ -1939,7 +2018,7 @@ if [ "$UPDATE_CHECK" = "true" ]; then
   last_check_time=$(cat "$timestamp_file" 2>/dev/null || echo 0)
 
   if ((current_time - last_check_time >= interval)); then
-    check_update "A new version of $CLI_NAME has been found would you like to upgrade(y/n)"
+    check_update "A new version of $CLI_NAME has been found would you like to upgrade? (y/n)"
     echo "$current_time" >"$timestamp_file"
   fi
 fi
