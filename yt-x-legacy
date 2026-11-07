@@ -159,7 +159,7 @@ load_config() {
   elif command -v mpv.exe >/dev/null 2>&1; then
     MPV_CMD="mpv.exe"
   else
-    MPV_CMD="mpv"  # fallback
+    MPV_CMD="mpv" # fallback
   fi
 
   PREFERRED_BROWSER="$(find_config_option "PREFERRED_BROWSER")"
@@ -213,57 +213,12 @@ load_config() {
 send_notification() {
   echo "$1" >&2 && sleep "$NOTIFICATION_DURATION"
 }
-update_script() {
-  yt_x_path="$(command -v yt-x)"
-  if [ -z "$yt_x_path" ]; then
-    send_notification "Can't find yt-x in PATH"
-    exit 1
-  fi
-
-  if [ ! -w "$yt_x_path" ]; then
-    if [ -n "$(command -v sudo)" ]; then
-      exec sudo -s "$yt_x_path" "-u"
-    else
-      send_notification "Insufficient permissions to update and can't find sudo in PATH"
-      exit 1
-    fi
-  fi
-
-  update=$(curl -s "https://raw.githubusercontent.com/mateussantospereira/yt-x/refs/heads/master/yt-x" || byebye 1)
-  update="$(printf '%s\n' "$update" | diff -u "$yt_x_path" - 2>/dev/null)"
-  if [ -z "$update" ]; then
-    send_notification "Script is up to date :)"
-  else
-    if printf '%s\n' "$update" | patch "$yt_x_path" -; then
-      send_notification "Script has been updated!"
-    else
-      send_notification "Can't update for some reason!"
-    fi
-  fi
-  exec "$yt_x_path"
-}
-
-check_update() {
-  update=$(curl -s "https://raw.githubusercontent.com/mateussantospereira/yt-x/refs/heads/master/yt-x")
-  update="$(printf '%s\n' "$update" | diff -u "$(command -v yt-x)" - 2>/dev/null)"
-  if [ -n "$update" ]; then
-    confirm "An update has been found would you like to see the changes before deciding whether to update?" && echo "$update" | less
-    if [ "$PREFERRED_SELECTOR" = "fzf" ]; then
-      answer=$(prompt "$1")
-    else
-      answer=$(printf "Yes\nNo" | launcher "$1")
-    fi
-    case "$answer" in
-    [Yy]*) update_script ;;
-    esac
-  fi
-}
 
 # Adapted from the preview script in the fzf repo
 fzf_preview() {
   file=$1
 
-  dim=${FZF_PREVIEW_COLUMNS}x${FZF_PREVIEW_LINES}
+  dim=$((FZF_PREVIEW_COLUMNS - 1))x$((FZF_PREVIEW_LINES))
 
   if [ "$dim" = x ]; then
     dim=$(stty size </dev/tty | awk "{print \$2 \"x\" \$1}")
@@ -504,7 +459,7 @@ echo
 
 ! [ \"$description\" = \"null\" ] && echo -n \"%s\";
 
-" > "$CLI_PREVIEW_SCRIPTS_DIR/$(echo "$video" | jq ".title" -r | generate_sha256).txt"
+" >"$CLI_PREVIEW_SCRIPTS_DIR/$(echo "$video" | jq ".title" -r | generate_sha256).txt"
 
   done
 }
@@ -777,8 +732,8 @@ playlist_explorer() {
           |map(.value))
           ") && ! [ "$ENABLE_PREVIEW" = "true" ] || ! [ "$PREFERRED_SELECTOR" = "fzf" ] && DOWNLOAD_IMAGES=1
     titles=$(echo "$search_results" | jq '.entries[].title' -r 2>/dev/null)
-    if [ $ENABLE_PREVIEW = "true" ] && [ $PREFERRED_SELECTOR = "fzf" ] ; then
-        download_preview_images "$search_results" "" && DOWNLOAD_IMAGES=1
+    if [ $ENABLE_PREVIEW = "true" ] && [ $PREFERRED_SELECTOR = "fzf" ]; then
+      download_preview_images "$search_results" "" && DOWNLOAD_IMAGES=1
     fi
     export search_results SHELL
     if [ $ENABLE_PREVIEW = "true" ]; then
@@ -2014,23 +1969,6 @@ Example:
   shift
 done
 
-# Check for updates if enabled
-if [ "$UPDATE_CHECK" = "true" ]; then
-  # setup for ui
-  timestamp_file="$CLI_CACHE_DIR/.last_update_check"
-
-  # Time interval in seconds (6 hours = 21600 seconds)
-  interval=$((6 * 60 * 60))
-
-  # Determine whether to run the update check
-  current_time=$(date +%s)
-  last_check_time=$(cat "$timestamp_file" 2>/dev/null || echo 0)
-
-  if ((current_time - last_check_time >= interval)); then
-    check_update "A new version of $CLI_NAME has been found would you like to upgrade? (y/n)"
-    echo "$current_time" >"$timestamp_file"
-  fi
-fi
 core_dep_ch
 
 # exports
